@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.fnarget" name="Fnarg" version="1.0.0" provider-name="snow6oy">
+  <requires>
+    <import addon="xbmc.python" version="2.14.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="addon.py">
+    <provides>executable</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <platform>all</platform>
+    <summary lang="en">Fnarg says hi</summary>
+    <description lang="en">First Plugin from Fnarg</description>
+    <license>GNU General Public License, v2</license>
+    <language>en</language>
+    <forum></forum>
+    <source>https://github.com/snow6oy/script.fnarget</source>
+    <website>http://www.fnarg.net</website>
+    <email>snow6oy at fnarg dot net</email>
+  </extension>
+</addon>
