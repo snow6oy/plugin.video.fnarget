@@ -2,6 +2,9 @@ import xbmc
 import xbmcgui
 import xbmcaddon
  
+#addon       = xbmcaddon.Addon()
+#addonname   = addon.getAddonInfo('name')
+
 __addon__ = xbmcaddon.Addon()
 __addonname__ = __addon__.getAddonInfo('name')
 preFilledInput = ''
@@ -30,3 +33,17 @@ progress.close()
 #xbmc.log('charlotte '+ person, level=xbmc.LOGDEBUG)
 #xbmc.executebuiltin("THE INPUTTED NAME, IS NOT VALID,()")
 #xbmcgui.Dialog().ok("User name given "+ person, "x", "y", "z")
+
+'''
+import sys
+import xbmcgui
+import xbmcplugin
+
+addon_handle = int(sys.argv[1])
+xbmcplugin.setContent(addon_handle, 'movies')
+url = 'http://mingus.local/video/match-of-the-day-h264sm.mp4'
+
+li = xbmcgui.ListItem('MOTD small', iconImage='DefaultVideo.png')
+xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li)
+xbmcplugin.endOfDirectory(addon_handle)
+'''
