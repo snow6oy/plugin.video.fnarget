@@ -1,9 +1,8 @@
 import sys
-import xbmc
-import xbmcgui
-import xbmcaddon
-import xbmcplugin
-import urllib.request
+import urllib, urllib2
+import xbmcplugin, xbmcaddon, xbmcgui, xbmc
+
+#import urllib.request
 # XBMC Python comes with all the standard modules from Python 2.6 or later
 # http://mirrors.kodi.tv/docs/python-docs/14.x-helix/
 def showProgress(person):
@@ -22,8 +21,6 @@ def showProgress(person):
 	progress.close()
 
 def getPersonName():
-	addon=xbmcaddon.Addon()
-	addonname=addon.getAddonInfo('name')
 	prefilledinput=''
 	kb = xbmc.Keyboard(prefilledinput, 'Please type in your name to continue')
 	kb.doModal()
@@ -31,30 +28,37 @@ def getPersonName():
 	  person = kb.getText()
 	return person
 
-def response(req):
-	try: rsp=urllib.request.urlopen(req)
-	except urllib.error.HTTPError as e: # connx was ok, have status code
+def response2(req):
+	try: rsp=urllib2.urlopen(req)
+	except urllib2.HTTPError as e: # connx was ok, have status code
 		return e.getcode()
-	except urllib.error.URLError as e: # connx failed, timeout .. whatever
+	except urllib2.URLError as e: # connx failed, timeout .. whatever
 		return e.reason
-	return rsp.status  # rsp.reason
+	return rsp.getcode()  # rsp.reason
 
-person=None
-url='http://fnarg.local:5001/'+ person
+addon_handle=int(sys.argv[1]) # handle the plugin was started with
+addon=xbmcaddon.Addon()
+addonname=addon.getAddonInfo('name')
 
-addon_handle = int(sys.argv[1])
+person=''
+url='http://fnarg.local:5001/'
+
 xbmcplugin.setContent(addon_handle, 'movies')
 #url = 'http://mingus.local/video/match-of-the-day-h264sm.mp4'
-li = xbmcgui.ListItem('MOTD small', iconImage='DefaultVideo.png')
+li = xbmcgui.ListItem('login', iconImage='DefaultVideo.png')
 xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li)
 xbmcplugin.endOfDirectory(addon_handle)
 
+#login_data = urllib.urlencode({'user':username, 'pass':password, 'memento':1, 'x':0, 'y':0, 'do':'login'})
 if person:
   showProgress(person)
 else:
-	pass
-	req=urllib.request.Request(url)
-	print(response(req))
+	person=getPersonName()
+	url=url+ person
+	req=urllib2.Request(url)
+	rsp=str(response2(req))
+	# DEBUG also needs to be turned on in Kodi > System > Settings
+	xbmc.log("api status code:"+ rsp, xbmc.LOGDEBUG) 
 
 '''
 test case 0 same url with server stopped on port 5001
