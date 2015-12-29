@@ -2,6 +2,7 @@
 <addon id="script.fnarget" name="Fnarg" version="1.0.0" provider-name="snow6oy">
   <requires>
     <import addon="xbmc.python" version="2.14.0"/>
+    <import addon="script.module.requests" version="2.7.0"/>
   </requires>
   <extension point="xbmc.python.pluginsource" library="addon.py">
     <provides>executable</provides>
