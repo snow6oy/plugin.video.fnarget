@@ -1,0 +1,3 @@
+<settings>
+	<setting id="person" visible="true" type="text" label="30201" default="" enable="!eq(-1,false)"/>
+</settings>
