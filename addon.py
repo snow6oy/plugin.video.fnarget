@@ -3,21 +3,16 @@ import urllib, urllib2, urlparse
 import xbmcplugin, xbmcaddon, xbmcgui, xbmc
 # XBMC Python comes with all the standard modules from Python 2.6 or later
 # http://mirrors.kodi.tv/docs/python-docs/14.x-helix/
-def showProgress(person):
-  progress = xbmcgui.DialogProgress()
-  progress.create(__addonname__, "hi "+ person)
-  i=0
-  while i < 11:
-    percent = int( ( i / 10.0 ) * 100)
-    message = "Attempting to log you in " + str(i) + " out of 10"
-    progress.update(percent, "", message, "")
-    print("Message "+ str(i)+ " out of 10")
-    xbmc.sleep(1000)
-    if progress.iscanceled():
-      break
-    i=i+ 1
-  progress.close()
 
+# TODO
+# bug: local variable 'person' referenced before assignment on [x] window close
+# refactor to use lib/LaunchkeyApiClient.py
+# report error in docs and join kodi forum
+# release as module and create video plugin as demo
+# DONE
+# menu should be context sensitive to logged in or not
+# add notices for errors
+# improve navigation to avoid empty folder
 def getPersonName():
   prefilledinput=''
   kb = xbmc.Keyboard(prefilledinput, 'Please type in your name to continue')
@@ -26,77 +21,116 @@ def getPersonName():
     person = kb.getText()
   return person
 
-def authApi(req):
-  try: rsp=urllib2.urlopen(req)
-  except urllib2.HTTPError as e: # connx was ok, have status code
-    return e.getcode()
-  except urllib2.URLError as e: # connx failed, timeout .. whatever
-    return 0   # e.reason would be better but its a string and easier to always return numeric
-  return rsp.getcode()  # rsp.reason
-
 def buildXbmcUrl(query):
-    return base_url + '?' + urllib.urlencode(query)
-
+  return base_url+ '?'+ urllib.urlencode(query)
 ################################################################################
-__addonname__='script.fnarget'
+class LaunchkeyApiClient:
+  # TODO pass this when new instance is created
+  api_url='http://fnarg.local:5001/'
+
+  def authApi(self, req):
+    try: rsp=urllib2.urlopen(req)
+    except urllib2.HTTPError as e: # connx was ok, have status code
+      return e.getcode()
+    except urllib2.URLError as e: # connx failed, timeout .. whatever
+      return 0  # e.reason would be more informative
+                # but its a string and we need to return an integer
+    return rsp.getcode()  # rsp.reason, see above
+
+  # prepare a POST request for the api client
+  def doLogin(self, person):
+    logging.debug('>>> about to login %s <<<' % person)
+    data=urllib.urlencode({'person': person})
+    data=data.encode('utf-8') # data should be bytes
+    req=urllib2.Request(self.api_url, data)
+    status_code=self.authApi(req)
+    return {'status_code': status_code, 'person': person}
+
+  # prepare a GET request for the api client
+  def doWhoami(self, person=None):
+    api_url=self.api_url+ person
+    logging.debug('>>> verifying %s <<<' % api_url)
+    req=urllib2.Request(api_url)
+    status_code=self.authApi(req)
+    return status_code
+
+  # and a DELETE request too
+  def doLogout(self, person=None):
+    api_url=api_url+ person
+    logging.debug('>>> deleting %s <<<' % api_url)
+    opener=urllib2.build_opener(urllib2.HTTPHandler)
+    req=urllib2.Request(api_url)
+    req.get_method=lambda: 'DELETE'
+    status_code=self.authApi(req)
+    return status_code
+################################################################################
+__addonname__='plugin.video.fnarget'
 addon=xbmcaddon.Addon()
 addonname=addon.getAddonInfo('name') # pretty version
-base_url = sys.argv[0]
-addon_handle=int(sys.argv[1]) # handle the plugin was started with
-args = urlparse.parse_qs(sys.argv[2][1:]) # parse ?foo=bar ignoring the ?
-xbmcplugin.setContent(addon_handle, 'files')
+base_url=sys.argv[0]
+handle=int(sys.argv[1]) # handle the plugin was started with
+args=urlparse.parse_qs(sys.argv[2][1:]) # parse ?foo=bar ignoring the ?
+xbmcplugin.setContent(handle, 'video')
 settings=xbmcaddon.Addon(id=__addonname__)
-person=settings.getSetting('person') # TODO set and unset on login and logout
-api_url='http://fnarg.local:5001/'
+person=settings.getSetting('person')
 mode=args.get('mode', None)
-# set to logging.INFO for tranquility, DEBUG for noisiness
+lac=LaunchkeyApiClient()
+# set logging.INFO for tranquility, DEBUG for noisiness
 # DEBUG can also be turned on in Kodi > System > Settings
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-if mode is None:
-  for foldername in ['login', 'logout', 'whoami']:
-    url=buildXbmcUrl({'mode': 'folder', 'foldername': foldername})
-    li=xbmcgui.ListItem(foldername, iconImage='DefaultFolder.png')
-    xbmcplugin.addDirectoryItem(handle=addon_handle, url=url, listitem=li, isFolder=True)
-  xbmcplugin.endOfDirectory(addon_handle)
+if mode is None:  
+  pass # we build the default menu at the end
 elif mode[0] == 'folder':
   foldername=args['foldername'][0]
   if foldername == 'login':
     if not person: # there is no local session
       person=getPersonName()
-      logging.info('>>> about to login %s <<<' % person)
-      data=urllib.urlencode({'person': person})
-      data=data.encode('utf-8') # data should be bytes
-      req=urllib2.Request(api_url, data)
-      status_code=authApi(req)
-      logging.info('>>> api status code %d <<<' % status_code)
-      if status_code == 201: # got a remote session ok, now we create local session to avoid network overhead
-        settings.setSetting(id='person', value=person)
+      login=lac.doLogin(person)
+      logging.debug('>>> api status code %d <<<' % login['status_code'])
+      if login['status_code'] == 201:# if we got a remote session then 
+                                     # create local session to avoid network hit
+        settings.setSetting(id='person', value=login['person']) # write local fs
+        person=login['person'] # global assignment
+      else:
+        xbmc.executebuiltin('XBMC.Notification("Login failed", "please retry")')
+        person=None # forget what was entered
     else:
-      logging.warning(">>> why show the '%s' folder when there is already a session? <<<" % foldername)      
+      pass # why show the login option when there is already a session?
   elif foldername == 'whoami':
-    api_url=api_url+ person
-    logging.info('>>> verifying %s <<<' % api_url)    
-    req=urllib2.Request(api_url)
-    status_code=authApi(req)
-    logging.info('>>> api status code %d <<<' % status_code)
+    status_code=lac.doWhoami(person)
+    logging.debug('>>> api status code %d <<<' % status_code)
+    if status_code != 200:
+      xbmc.executebuiltin('XBMC.Notification("Nobody is logged in", "")')
   elif foldername == 'logout':
-    api_url=api_url+ person
-    logging.info('>>> deleting %s <<<' % api_url)
-    opener=urllib2.build_opener(urllib2.HTTPHandler)
-    req=urllib2.Request(api_url)
-    req.get_method = lambda: 'DELETE'
-    status_code=authApi(req)
-    logging.info('>>> api status code %d <<<' % status_code)
-    if status_code == 204: # clear down local session unless there was a remote error
+    status_code=lac.doLogout(person)
+    logging.debug('>>> api status code %d <<<' % status_code)
+    if status_code == 204: # unless there was a remote error 
+                           # then clear down the local session 
       settings.setSetting(id='person', value=None)
-  xbmcplugin.endOfDirectory(addon_handle)
-else:
-  logging.warning('>>> unexpected mode %s <<<' % mode)
+      person=None # remove from menu
+      xbmc.executebuiltin('XBMC.Notification("logout ok", "")')
+  else:
+    logging.debug('>>> unknown foldername %s <<<' % foldername)
+else:logging.debug('>>> unexpected mode %s <<<' % mode)
+
+logging.debug('>>> building menu with person %s <<<' % person)
+logging.debug('>>> building menu with handle %d <<<' % handle)  
+for foldername in ['login', 'logout', 'whoami']:
+  if not person and foldername == 'logout':
+    continue
+  url=buildXbmcUrl({'mode': 'folder', 'foldername': foldername})
+  li=xbmcgui.ListItem(foldername, iconImage='DefaultFolder.png')
+  xbmcplugin.addDirectoryItem(
+    handle=handle, url=url, listitem=li, isFolder=True
+  )
+xbmcplugin.endOfDirectory(handle)
 ################################################################################
 '''
 test case 0 same url with server stopped on port 5001
-[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+[WinError 10060] A connection attempt failed because the connected party did not 
+properly respond after a period of time, or established connection failed 
+because connected host has failed to respond
 
 GET
 test case 1 and 2 both return 404 when person is '' or graham
