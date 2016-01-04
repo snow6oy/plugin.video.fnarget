@@ -1,4 +1,4 @@
-# script.fnarget
+# plugin.video.fnarget
 
-kodi plugin to demonstrate the awesomeness of password-less login
+Fnarget exists to demonstrate the awesomeness of password-less login
 
