@@ -2,11 +2,11 @@
 
 Fnarget exists to demonstrate the awesomeness of password-less login
 ```
-               +------+     +---------+
-      -------->| IPTV |-----| Web App |         
- O             +------+     +---------+   
+               .------.     .---------.
+kodi  -------->| IPTV |-----| Web App |         
+ O             .------.     .---------.   
 /|\                              |
-/ \            +------+     +---------+            
-kodi  <--------|Mobile|-----|Launchkey|
-user           +------+     +---------+
+/ \            .------.     .---------.            
+user  <--------|Mobile|-----|Launchkey|
+               .------.     .---------.
 ```
