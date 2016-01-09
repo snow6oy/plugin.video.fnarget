@@ -1,10 +1,10 @@
 import sys, logging
 import urllib, urllib2, urlparse
 import xbmcplugin, xbmcaddon, xbmcgui, xbmc
-# XBMC Python comes with all the standard modules from Python 2.6 or later
-# http://mirrors.kodi.tv/docs/python-docs/14.x-helix/
-
+# right http://mirrors.xbmc.org/docs/python-docs/14.x-helix/
+# wrong http://mirrors.kodi.tv/docs/python-docs/14.x-helix/
 # TODO
+# make username and person as separate variables
 # bug: local variable 'person' referenced before assignment on [x] window close
 # refactor to use lib/LaunchkeyApiClient.py
 # report error in docs and join kodi forum
@@ -14,12 +14,13 @@ import xbmcplugin, xbmcaddon, xbmcgui, xbmc
 # add notices for errors
 # improve navigation to avoid empty folder
 def getPersonName():
-  prefilledinput=''
-  kb = xbmc.Keyboard(prefilledinput, 'Please type in your name to continue')
-  kb.doModal()
-  if (kb.isConfirmed()):
-    person = kb.getText()
-  return person
+  if not person:
+    prefilledinput=''
+    kb = xbmc.Keyboard(prefilledinput, 'Please type in your name to continue')
+    kb.doModal()
+    if (kb.isConfirmed()):
+      person = kb.getText()
+  return person # from either settings or keyboard
 
 def buildXbmcUrl(query):
   return base_url+ '?'+ urllib.urlencode(query)
@@ -56,7 +57,7 @@ class LaunchkeyApiClient:
 
   # and a DELETE request too
   def doLogout(self, person=None):
-    api_url=api_url+ person
+    api_url=self.api_url+ person
     logging.debug('>>> deleting %s <<<' % api_url)
     opener=urllib2.build_opener(urllib2.HTTPHandler)
     req=urllib2.Request(api_url)
@@ -77,7 +78,7 @@ mode=args.get('mode', None)
 lac=LaunchkeyApiClient()
 # set logging.INFO for tranquility, DEBUG for noisiness
 # DEBUG can also be turned on in Kodi > System > Settings
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 if mode is None:  
   pass # we build the default menu at the end
@@ -98,18 +99,21 @@ elif mode[0] == 'folder':
     else:
       pass # why show the login option when there is already a session?
   elif foldername == 'whoami':
-    status_code=lac.doWhoami(person)
-    logging.debug('>>> api status code %d <<<' % status_code)
-    if status_code != 200:
-      xbmc.executebuiltin('XBMC.Notification("Nobody is logged in", "")')
+    if not person:
+      xbmc.executebuiltin('XBMC.Notification("Nobody", "is logged in")')
+    else:
+      status_code=lac.doWhoami(person)
+      logging.debug('>>> api status code %d <<<' % status_code)
+      if status_code != 200:
+        xbmc.executebuiltin('XBMC.Notification('+ person+ ', "failed login")')        
+      else:
+        xbmc.executebuiltin('XBMC.Notification('+ person+ ', "is logged in")')
   elif foldername == 'logout':
     status_code=lac.doLogout(person)
     logging.debug('>>> api status code %d <<<' % status_code)
-    if status_code == 204: # unless there was a remote error 
-                           # then clear down the local session 
-      settings.setSetting(id='person', value=None)
-      person=None # remove from menu
-      xbmc.executebuiltin('XBMC.Notification("logout ok", "")')
+    xbmc.executebuiltin('XBMC.Notification('+ person+ ', "has logged out")')
+    settings.setSetting(id='person', value=None)
+    person=None # remove from menu
   else:
     logging.debug('>>> unknown foldername %s <<<' % foldername)
 else:logging.debug('>>> unexpected mode %s <<<' % mode)
@@ -117,7 +121,7 @@ else:logging.debug('>>> unexpected mode %s <<<' % mode)
 logging.debug('>>> building menu with person %s <<<' % person)
 logging.debug('>>> building menu with handle %d <<<' % handle)  
 for foldername in ['login', 'logout', 'whoami']:
-  if not person and foldername == 'logout':
+  if foldername == 'logout' and not person or foldername == 'login' and person:
     continue
   url=buildXbmcUrl({'mode': 'folder', 'foldername': foldername})
   li=xbmcgui.ListItem(foldername, iconImage='DefaultFolder.png')
