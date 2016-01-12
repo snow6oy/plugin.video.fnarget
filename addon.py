@@ -14,13 +14,14 @@ import xbmcplugin, xbmcaddon, xbmcgui, xbmc
 # add notices for errors
 # improve navigation to avoid empty folder
 def getPersonName():
-  if not person:
-    prefilledinput=''
-    kb = xbmc.Keyboard(prefilledinput, 'Please type in your name to continue')
-    kb.doModal()
-    if (kb.isConfirmed()):
-      person = kb.getText()
-  return person # from either settings or keyboard
+  prefilledinput=''
+  kb = xbmc.Keyboard(prefilledinput, 'Please type in your name to continue')
+  kb.doModal()
+  if (kb.isConfirmed()):
+    person = kb.getText()
+    return person
+  else:
+    return None
 
 def buildXbmcUrl(query):
   return base_url+ '?'+ urllib.urlencode(query)
@@ -39,7 +40,7 @@ class LaunchkeyApiClient:
     return rsp.getcode()  # rsp.reason, see above
 
   # prepare a POST request for the api client
-  def doLogin(self, person):
+  def doLogin(self, person=None):
     logging.debug('>>> about to login %s <<<' % person)
     data=urllib.urlencode({'person': person})
     data=data.encode('utf-8') # data should be bytes
@@ -48,7 +49,7 @@ class LaunchkeyApiClient:
     return {'status_code': status_code, 'person': person}
 
   # prepare a GET request for the api client
-  def doWhoami(self, person=None):
+  def doWhoami(self, person=""):
     api_url=self.api_url+ person
     logging.debug('>>> verifying %s <<<' % api_url)
     req=urllib2.Request(api_url)
@@ -85,7 +86,7 @@ if mode is None:
 elif mode[0] == 'folder':
   foldername=args['foldername'][0]
   if foldername == 'login':
-    if not person: # there is no local session
+    if not person: # there is no local session from either settings or keyboard
       person=getPersonName()
       login=lac.doLogin(person)
       logging.debug('>>> api status code %d <<<' % login['status_code'])
